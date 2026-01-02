@@ -49,7 +49,26 @@ export default function TransfersPage() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    
+    if (name === 'currency') {
+      // Update currency and reset chain based on currency selection
+      const defaultChain = value === 'BTC' ? 'bitcoin' : 'polygon';
+      setFormData(prev => ({ ...prev, [name]: value, chain: defaultChain }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
+  };
+
+  // Get available chains based on selected currency
+  const getAvailableChains = () => {
+    if (formData.currency === 'BTC') {
+      return [{ value: 'bitcoin', label: 'Bitcoin' }];
+    } else {
+      return [
+        { value: 'polygon', label: 'Polygon' },
+        { value: 'bsc', label: 'Binance Smart Chain' }
+      ];
+    }
   };
 
   return (
@@ -121,9 +140,11 @@ export default function TransfersPage() {
                 required
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                <option value="bitcoin">Bitcoin</option>
-                <option value="polygon">Polygon</option>
-                <option value="bsc">Binance Smart Chain</option>
+                {getAvailableChains().map((chain) => (
+                  <option key={chain.value} value={chain.value}>
+                    {chain.label}
+                  </option>
+                ))}
               </select>
             </div>
 

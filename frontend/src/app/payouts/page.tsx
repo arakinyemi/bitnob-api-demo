@@ -56,6 +56,18 @@ export default function PayoutsPage() {
     },
   });
 
+  // Get available chains based on selected currency
+  const getAvailableChains = () => {
+    if (quoteForm.fromAsset === 'BTC') {
+      return [{ value: 'bitcoin', label: 'Bitcoin' }];
+    } else {
+      return [
+        { value: 'polygon', label: 'Polygon' },
+        { value: 'bsc', label: 'Binance Smart Chain' }
+      ];
+    }
+  };
+
   const createQuote = async () => {
     setIsLoading(true);
     try {
@@ -160,12 +172,30 @@ export default function PayoutsPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">From Asset</label>
                 <select
                   value={quoteForm.fromAsset}
-                  onChange={(e) => setQuoteForm(prev => ({ ...prev, fromAsset: e.target.value }))}
+                  onChange={(e) => {
+                    const newFromAsset = e.target.value;
+                    const defaultChain = newFromAsset === 'BTC' ? 'bitcoin' : 'polygon';
+                    setQuoteForm(prev => ({ ...prev, fromAsset: newFromAsset, chain: defaultChain }));
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="BTC">Bitcoin (BTC)</option>
                   <option value="USDT">Tether (USDT)</option>
                   <option value="USDC">USD Coin (USDC)</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Blockchain</label>
+                <select
+                  value={quoteForm.chain || 'bitcoin'}
+                  onChange={(e) => setQuoteForm(prev => ({ ...prev, chain: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {getAvailableChains().map((chain) => (
+                    <option key={chain.value} value={chain.value}>
+                      {chain.label}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>
