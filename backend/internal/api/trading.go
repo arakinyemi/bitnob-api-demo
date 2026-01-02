@@ -19,9 +19,10 @@ func NewTradingHandler(client BitnobClient) *TradingHandler {
 
 func (h *TradingHandler) CreateQuote(c *gin.Context) {
 	var req models.CreateQuoteRequest
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
 			"error":   "Invalid request",
 			"details": err.Error(),
 		})
@@ -31,20 +32,25 @@ func (h *TradingHandler) CreateQuote(c *gin.Context) {
 	response, err := h.bitnobClient.CreateTradingQuote(req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
 			"error":   "Failed to create trading quote",
 			"details": err.Error(),
 		})
 		return
 	}
 
-	c.JSON(http.StatusOK, response)
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    response,
+	})
 }
 
 func (h *TradingHandler) CreateOrder(c *gin.Context) {
 	var req models.CreateOrderRequest
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
 			"error":   "Invalid request",
 			"details": err.Error(),
 		})
@@ -54,39 +60,51 @@ func (h *TradingHandler) CreateOrder(c *gin.Context) {
 	response, err := h.bitnobClient.CreateOrder(req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
 			"error":   "Failed to create order",
 			"details": err.Error(),
 		})
 		return
 	}
 
-	c.JSON(http.StatusOK, response)
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    response,
+	})
 }
 
 func (h *TradingHandler) GetOrders(c *gin.Context) {
 	response, err := h.bitnobClient.GetOrders()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
 			"error":   "Failed to get orders",
 			"details": err.Error(),
 		})
 		return
 	}
 
-	c.JSON(http.StatusOK, response)
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    response,
+	})
 }
 
 func (h *TradingHandler) GetOrderByID(c *gin.Context) {
 	id := c.Param("id")
-	
+
 	response, err := h.bitnobClient.GetOrderByID(id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
 			"error":   "Failed to get order",
 			"details": err.Error(),
 		})
 		return
 	}
 
-	c.JSON(http.StatusOK, response)
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    response,
+	})
 }

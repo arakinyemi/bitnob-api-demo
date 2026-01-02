@@ -21,8 +21,8 @@ interface CreateOrderRequest {
 export default function TradingPage() {
   const [activeTab, setActiveTab] = useState<"quote" | "order" | "orders">("quote");
   const [isLoading, setIsLoading] = useState(false);
-  const [result, setResult] = useState<any>(null);
-  const [orders, setOrders] = useState<any[]>([]);
+  const [result, setResult] = useState<unknown>(null);
+  const [orders, setOrders] = useState<unknown[]>([]);
   
   const [quoteForm, setQuoteForm] = useState<CreateQuoteRequest>({
     base_currency: "BTC",

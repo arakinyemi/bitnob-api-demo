@@ -30,8 +30,8 @@ type PayoutStep = "quote" | "initialize" | "finalize";
 
 export default function PayoutsPage() {
   const [currentStep, setCurrentStep] = useState<PayoutStep>("quote");
-  const [quoteData, setQuoteData] = useState<any>(null);
-  const [initializeData, setInitializeData] = useState<any>(null);
+  const [quoteData, setQuoteData] = useState<unknown>(null);
+  const [initializeData, setInitializeData] = useState<unknown>(null);
   const [isLoading, setIsLoading] = useState(false);
   
   const [quoteForm, setQuoteForm] = useState<PayoutQuoteRequest>({
