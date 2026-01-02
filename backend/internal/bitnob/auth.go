@@ -51,11 +51,11 @@ func GenerateAuthHeaders(clientID, clientSecret, payload string) (*AuthHeaders, 
 	if err != nil {
 		return nil, err
 	}
-	
+
 	timestamp := GenerateTimestamp()
 	message := BuildCanonicalMessage(clientID, timestamp, nonce, payload)
 	signature := GenerateSignature(message, clientSecret)
-	
+
 	return &AuthHeaders{
 		ClientID:  clientID,
 		Timestamp: timestamp,

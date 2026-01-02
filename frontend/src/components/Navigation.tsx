@@ -3,10 +3,16 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+interface NavItem {
+  href: string;
+  label: string;
+  isActive: boolean;
+}
+
 export default function Navigation() {
   const pathname = usePathname();
 
-  const navItems = [
+  const navItems: NavItem[] = [
     { href: "/", label: "Dashboard", isActive: pathname === "/" },
     { href: "/transfers", label: "Transfers", isActive: pathname === "/transfers" },
     { href: "/payouts", label: "Payouts", isActive: pathname === "/payouts" },
