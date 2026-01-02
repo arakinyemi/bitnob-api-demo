@@ -104,7 +104,6 @@ export default function TransfersPage() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="BTC">Bitcoin (BTC)</option>
-                <option value="ETH">Ethereum (ETH)</option>
                 <option value="USDT">Tether (USDT)</option>
                 <option value="USDC">USD Coin (USDC)</option>
               </select>
@@ -123,7 +122,6 @@ export default function TransfersPage() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="bitcoin">Bitcoin</option>
-                <option value="ethereum">Ethereum</option>
                 <option value="polygon">Polygon</option>
                 <option value="bsc">Binance Smart Chain</option>
               </select>

@@ -132,7 +132,7 @@ export default function TradingPage() {
             ].map((tab) => (
               <button
                 key={tab.key}
-                onClick={() => setActiveTab(tab.key as any)}
+                onClick={() => setActiveTab(tab.key as "quote" | "order" | "orders")}
                 className={`py-2 px-1 border-b-2 font-medium text-sm ${
                   activeTab === tab.key
                     ? "border-blue-500 text-blue-600"
@@ -164,8 +164,8 @@ export default function TradingPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="BTC">Bitcoin (BTC)</option>
-                    <option value="ETH">Ethereum (ETH)</option>
-                    <option value="LTC">Litecoin (LTC)</option>
+                    <option value="USDT">Tether (USDT)</option>
+                    <option value="USDC">USD Coin (USDC)</option>
                   </select>
                 </div>
 
@@ -256,8 +256,8 @@ export default function TradingPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="BTC">Bitcoin (BTC)</option>
-                    <option value="ETH">Ethereum (ETH)</option>
-                    <option value="LTC">Litecoin (LTC)</option>
+                    <option value="USDT">Tether (USDT)</option>
+                    <option value="USDC">USD Coin (USDC)</option>
                   </select>
                 </div>
 
