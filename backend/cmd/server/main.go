@@ -31,7 +31,7 @@ func main() {
 
 	// Setup router
 	router := gin.Default()
-	
+
 	// Apply middleware
 	router.Use(middleware.CORS())
 	router.Use(middleware.Logger())
@@ -42,7 +42,7 @@ func main() {
 	{
 		// Transfer routes
 		apiV1.POST("/transfers", transferHandler.CreateTransfer)
-		
+
 		// Payout routes
 		payouts := apiV1.Group("/payouts")
 		{
@@ -52,7 +52,7 @@ func main() {
 			payouts.GET("/countries/:country/requirements", payoutHandler.GetCountryRequirements)
 			payouts.GET("/limits", payoutHandler.GetTransactionLimits)
 		}
-		
+
 		// Trading routes
 		trading := apiV1.Group("/trading")
 		{

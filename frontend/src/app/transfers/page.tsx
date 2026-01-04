@@ -22,7 +22,7 @@ export default function TransfersPage() {
   });
   
   const [isLoading, setIsLoading] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<unknown>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,7 +49,26 @@ export default function TransfersPage() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    
+    if (name === 'currency') {
+      // Update currency and reset chain based on currency selection
+      const defaultChain = value === 'BTC' ? 'bitcoin' : 'polygon';
+      setFormData(prev => ({ ...prev, [name]: value, chain: defaultChain }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
+  };
+
+  // Get available chains based on selected currency
+  const getAvailableChains = () => {
+    if (formData.currency === 'BTC') {
+      return [{ value: 'bitcoin', label: 'Bitcoin' }];
+    } else {
+      return [
+        { value: 'polygon', label: 'Polygon' },
+        { value: 'bsc', label: 'Binance Smart Chain' }
+      ];
+    }
   };
 
   return (
@@ -104,7 +123,6 @@ export default function TransfersPage() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="BTC">Bitcoin (BTC)</option>
-                <option value="ETH">Ethereum (ETH)</option>
                 <option value="USDT">Tether (USDT)</option>
                 <option value="USDC">USD Coin (USDC)</option>
               </select>
@@ -122,10 +140,11 @@ export default function TransfersPage() {
                 required
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                <option value="bitcoin">Bitcoin</option>
-                <option value="ethereum">Ethereum</option>
-                <option value="polygon">Polygon</option>
-                <option value="bsc">Binance Smart Chain</option>
+                {getAvailableChains().map((chain) => (
+                  <option key={chain.value} value={chain.value}>
+                    {chain.label}
+                  </option>
+                ))}
               </select>
             </div>
 
