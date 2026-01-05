@@ -4,14 +4,9 @@ export default function Home() {
   return (
     <div className="max-w-4xl mx-auto">
       <div className="bg-white rounded-lg shadow-sm p-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-6">
-          Bitnob API Demo Dashboard
-        </h1>
-        
-        <p className="text-gray-600 mb-8">
-          Welcome to the Bitnob cryptocurrency payments and trading platform demo. 
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">
           Choose a service below to get started.
-        </p>
+        </h1>
 
         <div className="grid md:grid-cols-3 gap-6">
           <Link href="/transfers" className="group">
@@ -57,12 +52,6 @@ export default function Home() {
           </Link>
         </div>
 
-        <div className="mt-8 p-4 bg-blue-50 rounded-lg">
-          <h4 className="font-semibold text-blue-900 mb-2">Getting Started</h4>
-          <p className="text-blue-800 text-sm">
-            Make sure your backend server is running on port 8080 with valid Bitnob API credentials configured.
-          </p>
-        </div>
       </div>
     </div>
   );

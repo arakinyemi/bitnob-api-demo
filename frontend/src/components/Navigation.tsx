@@ -24,9 +24,6 @@ export default function Navigation() {
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center space-x-8">
-            <Link href="/" className="text-xl font-bold text-gray-900">
-              Bitnob Demo
-            </Link>
             <div className="flex space-x-6">
               {navItems.map((item) => (
                 <Link

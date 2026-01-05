@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/bitnob-api-demo/internal/models"
@@ -21,6 +22,7 @@ func (h *TransferHandler) CreateTransfer(c *gin.Context) {
 	var req models.TransferRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
+		fmt.Printf("JSON binding error: %v\n", err)
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
 			"error":   "Invalid request",
@@ -29,16 +31,23 @@ func (h *TransferHandler) CreateTransfer(c *gin.Context) {
 		return
 	}
 
+	fmt.Printf("Transfer request received: %+v\n", req)
+
 	response, err := h.bitnobClient.CreateTransfer(req)
 	if err != nil {
+		fmt.Printf("Transfer error: %v\n", err)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
 			"error":   "Failed to create transfer",
-			"details": err.Error(),
+			"details": map[string]interface{}{
+				"error_message": err.Error(),
+				"request_data":  req,
+			},
 		})
 		return
 	}
 
+	fmt.Printf("Transfer response: %+v\n", response)
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data":    response,

@@ -5,61 +5,68 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
+	"errors"
 	"fmt"
-	"strconv"
+	"log"
 	"time"
 )
 
-// GenerateNonce generates a 16-byte cryptographically-random value, hex-encoded
-func GenerateNonce() (string, error) {
-	bytes := make([]byte, 16)
-	if _, err := rand.Read(bytes); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(bytes), nil
-}
-
-// GenerateTimestamp returns the current Unix timestamp in seconds
-func GenerateTimestamp() string {
-	return strconv.FormatInt(time.Now().Unix(), 10)
-}
-
-// BuildCanonicalMessage builds the message to be signed
-// Format: CLIENT_ID:TIMESTAMP:NONCE:PAYLOAD
-func BuildCanonicalMessage(clientID, timestamp, nonce, payload string) string {
-	return fmt.Sprintf("%s:%s:%s:%s", clientID, timestamp, nonce, payload)
-}
-
-// GenerateSignature computes HMAC-SHA256 signature
-func GenerateSignature(message, secret string) string {
-	h := hmac.New(sha256.New, []byte(secret))
-	h.Write([]byte(message))
-	return hex.EncodeToString(h.Sum(nil))
-}
-
-// AuthHeaders represents the HMAC authentication headers
+// AuthHeaders contains the HMAC authentication headers
 type AuthHeaders struct {
-	ClientID  string
-	Timestamp string
-	Nonce     string
-	Signature string
+	XAuthClient    string
+	XAuthTimestamp string
+	XAuthNonce     string
+	XAuthSignature string
 }
 
-// GenerateAuthHeaders generates all required authentication headers
-func GenerateAuthHeaders(clientID, clientSecret, payload string) (*AuthHeaders, error) {
-	nonce, err := GenerateNonce()
+// GenerateAuthHeaders generates HMAC authentication headers for API requests
+func GenerateAuthHeaders(clientID, clientSecret string, body interface{}) (*AuthHeaders, error) {
+	if clientID == "" || clientSecret == "" {
+		return nil, errors.New("CLIENT_ID or CLIENT_SECRET is not provided")
+	}
+
+	// Timestamp in seconds
+	timestamp := time.Now().Unix()
+
+	// 16-byte random nonce, hex-encoded
+	nonceBytes := make([]byte, 16)
+	_, err := rand.Read(nonceBytes)
 	if err != nil {
 		return nil, err
 	}
+	nonce := hex.EncodeToString(nonceBytes)
 
-	timestamp := GenerateTimestamp()
-	message := BuildCanonicalMessage(clientID, timestamp, nonce, payload)
-	signature := GenerateSignature(message, clientSecret)
+	// Payload: stringify body if provided
+	var payload string
+	if body != nil {
+		switch v := body.(type) {
+		case string:
+			payload = v
+		default:
+			jsonBytes, err := json.Marshal(body)
+			if err != nil {
+				return nil, err
+			}
+			payload = string(jsonBytes)
+		}
+	}
+
+	// Build string to sign
+	stringToSign := fmt.Sprintf("%s:%d:%s:%s", clientID, timestamp, nonce, payload)
+	log.Printf("String to sign: %s", stringToSign)
+
+	// Generate HMAC-SHA256 signature
+	h := hmac.New(sha256.New, []byte(clientSecret))
+	h.Write([]byte(stringToSign))
+	signature := hex.EncodeToString(h.Sum(nil))
+
+	log.Printf("Generated signature: %s", signature)
 
 	return &AuthHeaders{
-		ClientID:  clientID,
-		Timestamp: timestamp,
-		Nonce:     nonce,
-		Signature: signature,
+		XAuthClient:    clientID,
+		XAuthTimestamp: fmt.Sprintf("%d", timestamp),
+		XAuthNonce:     nonce,
+		XAuthSignature: signature,
 	}, nil
 }

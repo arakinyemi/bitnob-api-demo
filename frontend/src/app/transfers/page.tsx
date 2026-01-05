@@ -20,7 +20,7 @@ export default function TransfersPage() {
     reference: "",
     description: "",
   });
-  
+
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<unknown>(null);
 
@@ -30,7 +30,7 @@ export default function TransfersPage() {
     setResult(null);
 
     try {
-      const response = await fetch("http://localhost:8080/api/v1/transfers", {
+      const response = await fetch("http://localhost:8080/wallets/transfers", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -49,7 +49,7 @@ export default function TransfersPage() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    
+
     if (name === 'currency') {
       // Update currency and reset chain based on currency selection
       const defaultChain = value === 'BTC' ? 'bitcoin' : 'polygon';
@@ -75,7 +75,7 @@ export default function TransfersPage() {
     <div className="max-w-2xl mx-auto">
       <div className="bg-white rounded-lg shadow-sm p-8">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">Create Transfer</h1>
-        
+
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid md:grid-cols-2 gap-6">
             <div>
@@ -148,20 +148,6 @@ export default function TransfersPage() {
               </select>
             </div>
 
-            <div>
-              <label htmlFor="reference" className="block text-sm font-medium text-gray-700 mb-2">
-                Reference
-              </label>
-              <input
-                type="text"
-                id="reference"
-                name="reference"
-                value={formData.reference}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Optional reference"
-              />
-            </div>
           </div>
 
           <div>

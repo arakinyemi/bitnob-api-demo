@@ -19,7 +19,7 @@ class ApiClient {
     options: RequestInit = {}
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
-    
+
     const config: RequestInit = {
       headers: {
         "Content-Type": "application/json",
@@ -77,7 +77,7 @@ export const transferApi = {
     chain: string;
     reference?: string;
     description?: string;
-  }) => apiClient.post("/api/v1/transfers", data),
+  }) => apiClient.post("/wallets/transfers", data),
 };
 
 // Payout API
@@ -89,7 +89,7 @@ export const payoutApi = {
     chain?: string;
     amount?: number;
     settlementAmount?: number;
-  }) => apiClient.post("/api/v1/payouts/quotes", data),
+  }) => apiClient.post("/api/payouts/quotes", data),
 
   initialize: (data: {
     quoteId: string;
@@ -104,16 +104,16 @@ export const payoutApi = {
       accountNumber?: string;
       phoneNumber?: string;
     };
-  }) => apiClient.post("/api/v1/payouts/initialize", data),
+  }) => apiClient.post("/api/payouts/initialize", data),
 
   finalize: (data: { quoteId: string }) =>
-    apiClient.post("/api/v1/payouts/finalize", data),
+    apiClient.post("/api/payouts/finalize", data),
 
   getCountryRequirements: (country: string) =>
-    apiClient.get(`/api/v1/payouts/countries/${country}/requirements`),
+    apiClient.get(`/api/payouts/countries/${country}/requirements`),
 
   getTransactionLimits: () =>
-    apiClient.get("/api/v1/payouts/limits"),
+    apiClient.get("/api/payouts/limits"),
 };
 
 // Trading API
@@ -123,7 +123,7 @@ export const tradingApi = {
     quote_currency: string;
     side: string;
     quantity: string;
-  }) => apiClient.post("/api/v1/trading/quotes", data),
+  }) => apiClient.post("/api/trading/quotes", data),
 
   createOrder: (data: {
     base_currency: string;
@@ -132,12 +132,12 @@ export const tradingApi = {
     quantity: string;
     price: string;
     quote_id: string;
-  }) => apiClient.post("/api/v1/trading/orders", data),
+  }) => apiClient.post("/api/trading/orders", data),
 
-  getOrders: () => apiClient.get("/api/v1/trading/orders"),
+  getOrders: () => apiClient.get("/api/trading/orders"),
 
   getOrderById: (id: string) =>
-    apiClient.get(`/api/v1/trading/orders/${id}`),
+    apiClient.get(`/api/trading/orders/${id}`),
 };
 
 export default apiClient;
