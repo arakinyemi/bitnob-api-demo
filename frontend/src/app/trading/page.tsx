@@ -2,34 +2,26 @@
 
 import { useState, useEffect } from "react";
 
-interface CreateQuoteRequest {
-  base_currency: string;
-  quote_currency: string;
-  side: string;
-  quantity: string;
-}
-
 interface CreateOrderRequest {
   base_currency: string;
   quote_currency: string;
   side: string;
   quantity: string;
-  price: string;
-  quote_id: string;
+  price?: string;
 }
 
 export default function TradingPage() {
-  const [activeTab, setActiveTab] = useState<"quote" | "order" | "orders">("quote");
+  const [activeTab, setActiveTab] = useState<"trade" | "orders">("trade");
   const [isLoading, setIsLoading] = useState(false);
-  const [result, setResult] = useState<unknown>(null);
-  const [orders, setOrders] = useState<unknown[]>([]);
-  
-  const [quoteForm, setQuoteForm] = useState<CreateQuoteRequest>({
-    base_currency: "BTC",
-    quote_currency: "USD",
-    side: "buy",
-    quantity: "",
-  });
+  const [quoteResult, setQuoteResult] = useState<Record<
+    string,
+    unknown
+  > | null>(null);
+  const [orderResult, setOrderResult] = useState<Record<
+    string,
+    unknown
+  > | null>(null);
+  const [orders, setOrders] = useState<Record<string, unknown>[]>([]);
 
   const [orderForm, setOrderForm] = useState<CreateOrderRequest>({
     base_currency: "BTC",
@@ -37,46 +29,68 @@ export default function TradingPage() {
     side: "buy",
     quantity: "",
     price: "",
-    quote_id: "",
   });
 
-  const createQuote = async () => {
+  const createQuoteAndOrder = async () => {
     setIsLoading(true);
-    setResult(null);
-    try {
-      const response = await fetch("http://localhost:8080/api/v1/trading/quotes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(quoteForm),
-      });
-      const data = await response.json();
-      setResult(data);
-      if (data.success && data.id) {
-        setOrderForm(prev => ({ ...prev, quote_id: data.id, price: data.price }));
-      }
-    } catch (error) {
-      setResult({ error: "Failed to create quote", details: error });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    setQuoteResult(null);
+    setOrderResult(null);
 
-  const createOrder = async () => {
-    setIsLoading(true);
-    setResult(null);
     try {
-      const response = await fetch("http://localhost:8080/api/v1/trading/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(orderForm),
-      });
-      const data = await response.json();
-      setResult(data);
-      if (data.success) {
-        fetchOrders();
+      // Step 1: Create Quote
+      const quoteResponse = await fetch(
+        "http://localhost:8080/api/v1/trading/quotes",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            base_currency: orderForm.base_currency,
+            quote_currency: orderForm.quote_currency,
+            side: orderForm.side,
+            quantity: orderForm.quantity,
+          }),
+        },
+      );
+
+      const quoteData = await quoteResponse.json();
+      setQuoteResult(quoteData);
+
+      if (quoteData.success && quoteData.id) {
+        // Step 2: Create Order with quote
+        const orderResponse = await fetch(
+          "http://localhost:8080/api/v1/trading/orders",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              base_currency: orderForm.base_currency,
+              quote_currency: orderForm.quote_currency,
+              side: orderForm.side,
+              quantity: orderForm.quantity,
+              price: orderForm.price || quoteData.price,
+              quote_id: quoteData.id,
+            }),
+          },
+        );
+
+        const orderData = await orderResponse.json();
+        setOrderResult(orderData);
+
+        if (orderData.success) {
+          // Refresh orders list
+          fetchOrders();
+          // Reset form
+          setOrderForm({
+            base_currency: "BTC",
+            quote_currency: "USD",
+            side: "buy",
+            quantity: "",
+            price: "",
+          });
+        }
       }
     } catch (error) {
-      setResult({ error: "Failed to create order", details: error });
+      setOrderResult({ error: "Failed to create order", details: error });
     } finally {
       setIsLoading(false);
     }
@@ -84,7 +98,9 @@ export default function TradingPage() {
 
   const fetchOrders = async () => {
     try {
-      const response = await fetch("http://localhost:8080/api/v1/trading/orders");
+      const response = await fetch(
+        "http://localhost:8080/api/v1/trading/orders",
+      );
       const data = await response.json();
       setOrders(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -98,45 +114,42 @@ export default function TradingPage() {
     }
   }, [activeTab]);
 
-  const handleQuoteInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+  ) => {
     const { name, value } = e.target;
-    setQuoteForm(prev => ({ ...prev, [name]: value }));
+    setOrderForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleOrderInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setOrderForm(prev => ({ ...prev, [name]: value }));
-  };
-
-  const copyQuoteToOrder = () => {
-    setOrderForm(prev => ({
-      ...prev,
-      base_currency: quoteForm.base_currency,
-      quote_currency: quoteForm.quote_currency,
-      side: quoteForm.side,
-      quantity: quoteForm.quantity,
-    }));
-    setActiveTab("order");
-  };
+  const tabs = [
+    { key: "trade" as const, label: "Place Order" },
+    { key: "orders" as const, label: "Order History" },
+  ];
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="bg-white rounded-lg shadow-sm">
+    <div className="min-h-screen bg-white">
+      <div className="max-w-5xl mx-auto px-6 lg:px-8 py-12">
+        {/* Header */}
+        <div className="mb-12">
+          <h1 className="text-4xl font-bold tracking-tight text-black mb-3">
+            Trading
+          </h1>
+          <p className="text-lg text-gray-600">
+            Execute cryptocurrency trading orders instantly
+          </p>
+        </div>
+
         {/* Tabs */}
-        <div className="border-b border-gray-200">
-          <nav className="flex space-x-8 px-8 pt-6">
-            {[
-              { key: "quote", label: "Get Quote" },
-              { key: "order", label: "Place Order" },
-              { key: "orders", label: "Order History" },
-            ].map((tab) => (
+        <div className="border-b border-gray-200 mb-8">
+          <nav className="flex space-x-8">
+            {tabs.map((tab) => (
               <button
                 key={tab.key}
-                onClick={() => setActiveTab(tab.key as "quote" | "order" | "orders")}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                onClick={() => setActiveTab(tab.key)}
+                className={`py-4 px-1 border-b-2 font-medium text-sm transition-all ${
                   activeTab === tab.key
-                    ? "border-blue-500 text-blue-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                    ? "border-black text-black"
+                    : "border-transparent text-gray-500 hover:text-black hover:border-gray-300"
                 }`}
               >
                 {tab.label}
@@ -145,280 +158,383 @@ export default function TradingPage() {
           </nav>
         </div>
 
-        <div className="p-8">
-          {/* Quote Tab */}
-          {activeTab === "quote" && (
-            <div className="space-y-6">
-              <h2 className="text-xl font-semibold text-gray-900">Create Trading Quote</h2>
-              
-              <div className="grid md:grid-cols-2 gap-6">
-                <div>
-                  <label htmlFor="base_currency" className="block text-sm font-medium text-gray-700 mb-2">
-                    Base Currency
-                  </label>
-                  <select
-                    id="base_currency"
-                    name="base_currency"
-                    value={quoteForm.base_currency}
-                    onChange={handleQuoteInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="BTC">Bitcoin (BTC)</option>
-                    <option value="USDT">Tether (USDT)</option>
-                    <option value="USDC">USD Coin (USDC)</option>
-                  </select>
-                </div>
+        {/* Trade Tab */}
+        {activeTab === "trade" && (
+          <div className="animate-fade-in">
+            <div className="grid lg:grid-cols-3 gap-8">
+              {/* Order Form */}
+              <div className="lg:col-span-2">
+                <div className="border border-gray-200 rounded-lg p-8">
+                  <h2 className="text-2xl font-semibold text-black mb-6">
+                    Place Order
+                  </h2>
 
-                <div>
-                  <label htmlFor="quote_currency" className="block text-sm font-medium text-gray-700 mb-2">
-                    Quote Currency
-                  </label>
-                  <select
-                    id="quote_currency"
-                    name="quote_currency"
-                    value={quoteForm.quote_currency}
-                    onChange={handleQuoteInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="USD">US Dollar (USD)</option>
-                    <option value="EUR">Euro (EUR)</option>
-                    <option value="NGN">Nigerian Naira (NGN)</option>
-                  </select>
-                </div>
+                  <div className="space-y-6">
+                    {/* Trading Pair */}
+                    <div className="grid md:grid-cols-2 gap-6">
+                      <div>
+                        <label
+                          htmlFor="base_currency"
+                          className="block text-sm font-medium text-black mb-2"
+                        >
+                          Base Currency
+                        </label>
+                        <select
+                          id="base_currency"
+                          name="base_currency"
+                          value={orderForm.base_currency}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition-all appearance-none bg-white"
+                        >
+                          <option value="BTC">Bitcoin (BTC)</option>
+                          <option value="USDT">Tether (USDT)</option>
+                          <option value="USDC">USD Coin (USDC)</option>
+                        </select>
+                      </div>
 
-                <div>
-                  <label htmlFor="side" className="block text-sm font-medium text-gray-700 mb-2">
-                    Side
-                  </label>
-                  <select
-                    id="side"
-                    name="side"
-                    value={quoteForm.side}
-                    onChange={handleQuoteInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="buy">Buy</option>
-                    <option value="sell">Sell</option>
-                  </select>
-                </div>
+                      <div>
+                        <label
+                          htmlFor="quote_currency"
+                          className="block text-sm font-medium text-black mb-2"
+                        >
+                          Quote Currency
+                        </label>
+                        <select
+                          id="quote_currency"
+                          name="quote_currency"
+                          value={orderForm.quote_currency}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition-all appearance-none bg-white"
+                        >
+                          <option value="USD">US Dollar (USD)</option>
+                          <option value="EUR">Euro (EUR)</option>
+                          <option value="NGN">Nigerian Naira (NGN)</option>
+                        </select>
+                      </div>
+                    </div>
 
-                <div>
-                  <label htmlFor="quantity" className="block text-sm font-medium text-gray-700 mb-2">
-                    Quantity
-                  </label>
-                  <input
-                    type="text"
-                    id="quantity"
-                    name="quantity"
-                    value={quoteForm.quantity}
-                    onChange={handleQuoteInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="0.001"
-                  />
+                    {/* Side */}
+                    <div>
+                      <label className="block text-sm font-medium text-black mb-3">
+                        Order Type
+                      </label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setOrderForm((prev) => ({ ...prev, side: "buy" }))
+                          }
+                          className={`py-3 px-6 rounded-lg font-medium transition-all ${
+                            orderForm.side === "buy"
+                              ? "bg-black text-white"
+                              : "border border-gray-300 text-gray-700 hover:bg-gray-50"
+                          }`}
+                        >
+                          Buy
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setOrderForm((prev) => ({ ...prev, side: "sell" }))
+                          }
+                          className={`py-3 px-6 rounded-lg font-medium transition-all ${
+                            orderForm.side === "sell"
+                              ? "bg-black text-white"
+                              : "border border-gray-300 text-gray-700 hover:bg-gray-50"
+                          }`}
+                        >
+                          Sell
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Quantity and Price */}
+                    <div className="grid md:grid-cols-2 gap-6">
+                      <div>
+                        <label
+                          htmlFor="quantity"
+                          className="block text-sm font-medium text-black mb-2"
+                        >
+                          Quantity
+                        </label>
+                        <input
+                          type="text"
+                          id="quantity"
+                          name="quantity"
+                          value={orderForm.quantity}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition-all"
+                          placeholder="0.001"
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label
+                          htmlFor="price"
+                          className="block text-sm font-medium text-black mb-2"
+                        >
+                          Price
+                          <span className="text-gray-400 font-normal ml-1">
+                            (Optional)
+                          </span>
+                        </label>
+                        <input
+                          type="text"
+                          id="price"
+                          name="price"
+                          value={orderForm.price}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition-all"
+                          placeholder="Market price"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Info Box */}
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                      <p className="text-sm text-gray-600">
+                        {orderForm.price
+                          ? "Your order will be executed at the specified price."
+                          : "Leaving price empty will use the current market rate."}
+                      </p>
+                    </div>
+
+                    {/* Submit Button */}
+                    <button
+                      onClick={createQuoteAndOrder}
+                      disabled={isLoading || !orderForm.quantity}
+                      className="w-full bg-black text-white py-3 px-6 rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium"
+                    >
+                      {isLoading ? "Processing Order..." : "Place Order"}
+                    </button>
+                  </div>
+
+                  {/* Quote Result */}
+                  {quoteResult && (
+                    <div className="mt-6 border-t border-gray-200 pt-6 animate-fade-in">
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-sm font-semibold text-black uppercase tracking-wide">
+                          Quote Details
+                        </h3>
+                        {(quoteResult.success as boolean) && (
+                          <svg
+                            className="w-5 h-5 text-black"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
+                              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
+                          </svg>
+                        )}
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          {(quoteResult.price as string) && (
+                            <div>
+                              <div className="text-gray-500 mb-1">Price</div>
+                              <div className="text-black font-medium">
+                                {quoteResult.price as string}
+                              </div>
+                            </div>
+                          )}
+                          {(quoteResult.id as string) && (
+                            <div>
+                              <div className="text-gray-500 mb-1">Quote ID</div>
+                              <div className="text-black font-mono text-xs">
+                                {(quoteResult.id as string).substring(0, 12)}...
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Order Result */}
+                  {orderResult && (
+                    <div className="mt-4 animate-fade-in">
+                      {(orderResult.success as boolean) ? (
+                        <div className="bg-black text-white rounded-lg p-4">
+                          <div className="flex items-start space-x-3">
+                            <svg
+                              className="w-6 h-6 shrink-0 mt-0.5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                              />
+                            </svg>
+                            <div>
+                              <h4 className="font-semibold mb-1">
+                                Order Placed Successfully
+                              </h4>
+                              <p className="text-sm text-gray-200">
+                                Your {orderForm.side} order for{" "}
+                                {orderForm.quantity} {orderForm.base_currency}{" "}
+                                has been executed.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                          <pre className="text-sm text-gray-600 overflow-auto font-mono">
+                            {JSON.stringify(orderResult, null, 2)}
+                          </pre>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <div className="flex space-x-4">
-                <button
-                  onClick={createQuote}
-                  disabled={isLoading}
-                  className="bg-blue-600 text-white py-2 px-6 rounded-md hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {isLoading ? "Getting Quote..." : "Get Quote"}
-                </button>
-                {result && result.success && (
-                  <button
-                    onClick={copyQuoteToOrder}
-                    className="bg-green-600 text-white py-2 px-6 rounded-md hover:bg-green-700"
-                  >
-                    Use Quote for Order
-                  </button>
-                )}
+              {/* Info Sidebar */}
+              <div className="lg:col-span-1">
+                <div className="border border-gray-200 rounded-lg p-6 sticky top-24">
+                  <h3 className="text-sm font-semibold text-black mb-4 uppercase tracking-wide">
+                    Trading Info
+                  </h3>
+                  <div className="space-y-4 text-sm">
+                    <div>
+                      <div className="text-gray-500 mb-1">Available Pairs</div>
+                      <div className="text-black">
+                        BTC/USD, USDT/USD, USDC/EUR
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-gray-500 mb-1">Order Types</div>
+                      <div className="text-black">Market & Limit Orders</div>
+                    </div>
+                    <div>
+                      <div className="text-gray-500 mb-1">Execution</div>
+                      <div className="text-black">Instant Settlement</div>
+                    </div>
+                  </div>
+                  <div className="mt-6 pt-6 border-t border-gray-200">
+                    <p className="text-xs text-gray-500 leading-relaxed">
+                      Orders are processed in real-time. The system
+                      automatically fetches the best available quote and
+                      executes your trade.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* Order Tab */}
-          {activeTab === "order" && (
-            <div className="space-y-6">
-              <h2 className="text-xl font-semibold text-gray-900">Place Trading Order</h2>
-              
-              <div className="grid md:grid-cols-2 gap-6">
-                <div>
-                  <label htmlFor="order_base_currency" className="block text-sm font-medium text-gray-700 mb-2">
-                    Base Currency
-                  </label>
-                  <select
-                    id="order_base_currency"
-                    name="base_currency"
-                    value={orderForm.base_currency}
-                    onChange={handleOrderInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="BTC">Bitcoin (BTC)</option>
-                    <option value="USDT">Tether (USDT)</option>
-                    <option value="USDC">USD Coin (USDC)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label htmlFor="order_quote_currency" className="block text-sm font-medium text-gray-700 mb-2">
-                    Quote Currency
-                  </label>
-                  <select
-                    id="order_quote_currency"
-                    name="quote_currency"
-                    value={orderForm.quote_currency}
-                    onChange={handleOrderInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="USD">US Dollar (USD)</option>
-                    <option value="EUR">Euro (EUR)</option>
-                    <option value="NGN">Nigerian Naira (NGN)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label htmlFor="order_side" className="block text-sm font-medium text-gray-700 mb-2">
-                    Side
-                  </label>
-                  <select
-                    id="order_side"
-                    name="side"
-                    value={orderForm.side}
-                    onChange={handleOrderInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="buy">Buy</option>
-                    <option value="sell">Sell</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label htmlFor="order_quantity" className="block text-sm font-medium text-gray-700 mb-2">
-                    Quantity
-                  </label>
-                  <input
-                    type="text"
-                    id="order_quantity"
-                    name="quantity"
-                    value={orderForm.quantity}
-                    onChange={handleOrderInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="0.001"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="order_price" className="block text-sm font-medium text-gray-700 mb-2">
-                    Price
-                  </label>
-                  <input
-                    type="text"
-                    id="order_price"
-                    name="price"
-                    value={orderForm.price}
-                    onChange={handleOrderInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Price per unit"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="quote_id" className="block text-sm font-medium text-gray-700 mb-2">
-                    Quote ID
-                  </label>
-                  <input
-                    type="text"
-                    id="quote_id"
-                    name="quote_id"
-                    value={orderForm.quote_id}
-                    onChange={handleOrderInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Quote ID from previous quote"
-                  />
-                </div>
-              </div>
-
-              <button
-                onClick={createOrder}
-                disabled={isLoading}
-                className="bg-blue-600 text-white py-2 px-6 rounded-md hover:bg-blue-700 disabled:opacity-50"
-              >
-                {isLoading ? "Placing Order..." : "Place Order"}
-              </button>
-            </div>
-          )}
-
-          {/* Orders Tab */}
-          {activeTab === "orders" && (
-            <div className="space-y-6">
-              <div className="flex justify-between items-center">
-                <h2 className="text-xl font-semibold text-gray-900">Order History</h2>
+        {/* Orders Tab */}
+        {activeTab === "orders" && (
+          <div className="animate-fade-in">
+            <div className="border border-gray-200 rounded-lg p-8">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-semibold text-black">
+                  Order History
+                </h2>
                 <button
                   onClick={fetchOrders}
-                  className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-all text-sm font-medium"
                 >
                   Refresh
                 </button>
               </div>
-              
+
               {orders.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  No orders found. Create a quote and place an order to see them here.
+                <div className="text-center py-12">
+                  <svg
+                    className="w-12 h-12 text-gray-300 mx-auto mb-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    />
+                  </svg>
+                  <p className="text-gray-500">
+                    No orders found. Place your first order to see it here.
+                  </p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <table className="min-w-full">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-black uppercase tracking-wider">
                           ID
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-black uppercase tracking-wider">
                           Pair
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-black uppercase tracking-wider">
                           Side
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-black uppercase tracking-wider">
                           Quantity
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-black uppercase tracking-wider">
                           Price
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-black uppercase tracking-wider">
                           Status
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {orders.map((order, index) => (
-                        <tr key={order.id || index}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {order.id?.substring(0, 8) || "N/A"}
+                    <tbody className="divide-y divide-gray-200">
+                      {orders.map((order: Record<string, unknown>, index) => (
+                        <tr
+                          key={(order.id as string) || index}
+                          className="hover:bg-gray-50"
+                        >
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">
+                            {(order.id as string)?.substring(0, 8) || "N/A"}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {order.base_currency}/{order.quote_currency}
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                            {order.base_currency as string}/
+                            {order.quote_currency as string}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            <span className={`capitalize ${order.side === "buy" ? "text-green-600" : "text-red-600"}`}>
-                              {order.side}
+                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            <span
+                              className={`capitalize font-medium ${
+                                order.side === "buy"
+                                  ? "text-black"
+                                  : "text-gray-600"
+                              }`}
+                            >
+                              {order.side as string}
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {order.quantity}
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {order.quantity as string}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {order.price}
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {order.price as string}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            <span className={`px-2 py-1 text-xs rounded-full ${
-                              order.status === "filled" ? "bg-green-100 text-green-800" :
-                              order.status === "pending" ? "bg-yellow-100 text-yellow-800" :
-                              "bg-gray-100 text-gray-800"
-                            }`}>
-                              {order.status}
+                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            <span
+                              className={`px-3 py-1 text-xs font-medium rounded-full ${
+                                order.status === "filled"
+                                  ? "bg-black text-white"
+                                  : order.status === "pending"
+                                    ? "bg-gray-200 text-gray-800"
+                                    : "bg-gray-100 text-gray-600"
+                              }`}
+                            >
+                              {order.status as string}
                             </span>
                           </td>
                         </tr>
@@ -428,18 +544,8 @@ export default function TradingPage() {
                 </div>
               )}
             </div>
-          )}
-
-          {/* Results */}
-          {result && (
-            <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Response</h3>
-              <pre className="text-sm text-gray-600 overflow-auto">
-                {JSON.stringify(result, null, 2)}
-              </pre>
-            </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

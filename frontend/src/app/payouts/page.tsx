@@ -30,10 +30,15 @@ type PayoutStep = "quote" | "initialize" | "finalize";
 
 export default function PayoutsPage() {
   const [currentStep, setCurrentStep] = useState<PayoutStep>("quote");
-  const [quoteData, setQuoteData] = useState<unknown>(null);
-  const [initializeData, setInitializeData] = useState<unknown>(null);
+  const [quoteData, setQuoteData] = useState<Record<string, unknown> | null>(
+    null,
+  );
+  const [initializeData, setInitializeData] = useState<Record<
+    string,
+    unknown
+  > | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  
+
   const [quoteForm, setQuoteForm] = useState<PayoutQuoteRequest>({
     source: "balance",
     fromAsset: "BTC",
@@ -42,28 +47,29 @@ export default function PayoutsPage() {
     amount: 0,
   });
 
-  const [initializeForm, setInitializeForm] = useState<InitializePayoutRequest>({
-    quoteId: "",
-    customerId: "",
-    country: "NG",
-    reference: "",
-    paymentReason: "personal",
-    beneficiary: {
-      type: "bank",
-      bankCode: "",
-      accountName: "",
-      accountNumber: "",
+  const [initializeForm, setInitializeForm] = useState<InitializePayoutRequest>(
+    {
+      quoteId: "",
+      customerId: "",
+      country: "NG",
+      reference: "",
+      paymentReason: "personal",
+      beneficiary: {
+        type: "bank",
+        bankCode: "",
+        accountName: "",
+        accountNumber: "",
+      },
     },
-  });
+  );
 
-  // Get available chains based on selected currency
   const getAvailableChains = () => {
-    if (quoteForm.fromAsset === 'BTC') {
-      return [{ value: 'bitcoin', label: 'Bitcoin' }];
+    if (quoteForm.fromAsset === "BTC") {
+      return [{ value: "bitcoin", label: "Bitcoin" }];
     } else {
       return [
-        { value: 'polygon', label: 'Polygon' },
-        { value: 'bsc', label: 'Binance Smart Chain' }
+        { value: "polygon", label: "Polygon" },
+        { value: "bsc", label: "Binance Smart Chain" },
       ];
     }
   };
@@ -71,14 +77,20 @@ export default function PayoutsPage() {
   const createQuote = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch("http://localhost:8080/api/v1/payouts/quotes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(quoteForm),
-      });
+      const response = await fetch(
+        "http://localhost:8080/api/v1/payouts/quotes",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(quoteForm),
+        },
+      );
       const data = await response.json();
       setQuoteData(data);
-      setInitializeForm(prev => ({ ...prev, quoteId: data.id || data.quoteId }));
+      setInitializeForm((prev) => ({
+        ...prev,
+        quoteId: data.id || data.quoteId,
+      }));
       setCurrentStep("initialize");
     } catch (error) {
       console.error("Quote creation failed:", error);
@@ -90,11 +102,14 @@ export default function PayoutsPage() {
   const initializePayout = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch("http://localhost:8080/api/v1/payouts/initialize", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(initializeForm),
-      });
+      const response = await fetch(
+        "http://localhost:8080/api/v1/payouts/initialize",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(initializeForm),
+        },
+      );
       const data = await response.json();
       setInitializeData(data);
       setCurrentStep("finalize");
@@ -108,11 +123,14 @@ export default function PayoutsPage() {
   const finalizePayout = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch("http://localhost:8080/api/v1/payouts/finalize", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ quoteId: initializeForm.quoteId }),
-      });
+      const response = await fetch(
+        "http://localhost:8080/api/v1/payouts/finalize",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ quoteId: initializeForm.quoteId }),
+        },
+      );
       const data = await response.json();
       alert("Payout completed successfully!");
       console.log("Finalization result:", data);
@@ -129,218 +147,414 @@ export default function PayoutsPage() {
     setInitializeData(null);
   };
 
-  return (
-    <div className="max-w-4xl mx-auto">
-      <div className="bg-white rounded-lg shadow-sm p-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">International Payouts</h1>
+  const steps = [
+    { id: "quote", label: "Quote", number: 1 },
+    { id: "initialize", label: "Initialize", number: 2 },
+    { id: "finalize", label: "Finalize", number: 3 },
+  ];
 
-        {/* Step indicator */}
-        <div className="flex justify-between items-center mb-8">
-          <div className="flex items-center space-x-4">
-            {["quote", "initialize", "finalize"].map((step, index) => (
-              <div key={step} className="flex items-center">
-                <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                    currentStep === step
-                      ? "bg-blue-600 text-white"
-                      : index < ["quote", "initialize", "finalize"].indexOf(currentStep)
-                      ? "bg-green-500 text-white"
-                      : "bg-gray-300 text-gray-700"
-                  }`}
-                >
-                  {index + 1}
+  const currentStepIndex = steps.findIndex((step) => step.id === currentStep);
+
+  return (
+    <div className="min-h-screen bg-white">
+      <div className="max-w-4xl mx-auto px-6 lg:px-8 py-12">
+        {/* Header */}
+        <div className="mb-12">
+          <h1 className="text-4xl font-bold tracking-tight text-black mb-3">
+            International Payouts
+          </h1>
+          <p className="text-lg text-gray-600">
+            Send money to bank accounts and mobile wallets worldwide
+          </p>
+        </div>
+
+        {/* Progress Indicator */}
+        <div className="mb-12">
+          <div className="flex items-center justify-between">
+            {steps.map((step, index) => (
+              <div key={step.id} className="flex items-center flex-1">
+                <div className="flex items-center">
+                  <div
+                    className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold transition-all ${
+                      currentStepIndex >= index
+                        ? "bg-black text-white"
+                        : "bg-gray-200 text-gray-500"
+                    }`}
+                  >
+                    {step.number}
+                  </div>
+                  <span
+                    className={`ml-3 text-sm font-medium ${
+                      currentStepIndex >= index ? "text-black" : "text-gray-400"
+                    }`}
+                  >
+                    {step.label}
+                  </span>
                 </div>
-                <span className="ml-2 text-sm font-medium capitalize">{step}</span>
-                {index < 2 && <div className="w-8 h-0.5 bg-gray-300 ml-4"></div>}
+                {index < steps.length - 1 && (
+                  <div className="flex-1 mx-4">
+                    <div
+                      className={`h-0.5 transition-all ${
+                        currentStepIndex > index ? "bg-black" : "bg-gray-200"
+                      }`}
+                    ></div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
-          <button
-            onClick={resetFlow}
-            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-          >
-            Start Over
-          </button>
         </div>
 
         {/* Quote Step */}
         {currentStep === "quote" && (
-          <div className="space-y-6">
-            <h2 className="text-lg font-semibold text-gray-900">Create Quote</h2>
-            <div className="grid md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">From Asset</label>
-                <select
-                  value={quoteForm.fromAsset}
-                  onChange={(e) => {
-                    const newFromAsset = e.target.value;
-                    const defaultChain = newFromAsset === 'BTC' ? 'bitcoin' : 'polygon';
-                    setQuoteForm(prev => ({ ...prev, fromAsset: newFromAsset, chain: defaultChain }));
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="BTC">Bitcoin (BTC)</option>
-                  <option value="USDT">Tether (USDT)</option>
-                  <option value="USDC">USD Coin (USDC)</option>
-                </select>
+          <div className="animate-fade-in">
+            <div className="border border-gray-200 rounded-lg p-8">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-semibold text-black">
+                  Create Quote
+                </h2>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Blockchain</label>
-                <select
-                  value={quoteForm.chain || 'bitcoin'}
-                  onChange={(e) => setQuoteForm(prev => ({ ...prev, chain: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+
+              <div className="space-y-6">
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-black mb-2">
+                      From Asset
+                    </label>
+                    <select
+                      value={quoteForm.fromAsset}
+                      onChange={(e) => {
+                        const newFromAsset = e.target.value;
+                        const defaultChain =
+                          newFromAsset === "BTC" ? "bitcoin" : "polygon";
+                        setQuoteForm((prev) => ({
+                          ...prev,
+                          fromAsset: newFromAsset,
+                          chain: defaultChain,
+                        }));
+                      }}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition-all appearance-none bg-white"
+                    >
+                      <option value="BTC">Bitcoin (BTC)</option>
+                      <option value="USDT">Tether (USDT)</option>
+                      <option value="USDC">USD Coin (USDC)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-black mb-2">
+                      Blockchain Network
+                    </label>
+                    <select
+                      value={quoteForm.chain || "bitcoin"}
+                      onChange={(e) =>
+                        setQuoteForm((prev) => ({
+                          ...prev,
+                          chain: e.target.value,
+                        }))
+                      }
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition-all appearance-none bg-white"
+                    >
+                      {getAvailableChains().map((chain) => (
+                        <option key={chain.value} value={chain.value}>
+                          {chain.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-black mb-2">
+                      To Currency
+                    </label>
+                    <select
+                      value={quoteForm.toCurrency}
+                      onChange={(e) =>
+                        setQuoteForm((prev) => ({
+                          ...prev,
+                          toCurrency: e.target.value,
+                        }))
+                      }
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition-all appearance-none bg-white"
+                    >
+                      <option value="NGN">Nigerian Naira (NGN)</option>
+                      <option value="GHS">Ghanaian Cedi (GHS)</option>
+                      <option value="KES">Kenyan Shilling (KES)</option>
+                      <option value="USD">US Dollar (USD)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-black mb-2">
+                      Amount
+                    </label>
+                    <input
+                      type="number"
+                      value={quoteForm.amount || ""}
+                      onChange={(e) =>
+                        setQuoteForm((prev) => ({
+                          ...prev,
+                          amount: parseFloat(e.target.value),
+                        }))
+                      }
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition-all"
+                      placeholder="0.001"
+                      step="0.000001"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  onClick={createQuote}
+                  disabled={isLoading}
+                  className="w-full bg-black text-white py-3 px-6 rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-all font-medium"
                 >
-                  {getAvailableChains().map((chain) => (
-                    <option key={chain.value} value={chain.value}>
-                      {chain.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">To Currency</label>
-                <select
-                  value={quoteForm.toCurrency}
-                  onChange={(e) => setQuoteForm(prev => ({ ...prev, toCurrency: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="NGN">Nigerian Naira (NGN)</option>
-                  <option value="GHS">Ghanaian Cedi (GHS)</option>
-                  <option value="KES">Kenyan Shilling (KES)</option>
-                  <option value="USD">US Dollar (USD)</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Amount</label>
-                <input
-                  type="number"
-                  value={quoteForm.amount || ""}
-                  onChange={(e) => setQuoteForm(prev => ({ ...prev, amount: parseFloat(e.target.value) }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="0.001"
-                  step="0.000001"
-                />
+                  {isLoading ? "Creating Quote..." : "Create Quote"}
+                </button>
               </div>
             </div>
-            <button
-              onClick={createQuote}
-              disabled={isLoading}
-              className="bg-blue-600 text-white py-2 px-6 rounded-md hover:bg-blue-700 disabled:opacity-50"
-            >
-              {isLoading ? "Creating Quote..." : "Create Quote"}
-            </button>
           </div>
         )}
 
         {/* Initialize Step */}
         {currentStep === "initialize" && (
-          <div className="space-y-6">
-            <h2 className="text-lg font-semibold text-gray-900">Initialize Payout</h2>
-            {quoteData && (
-              <div className="bg-green-50 p-4 rounded-lg mb-6">
-                <h3 className="font-medium text-green-900">Quote Created</h3>
-                <p className="text-green-700 text-sm">
-                  Rate: {quoteData.exchangeRate} | Amount: {quoteData.settlementAmount} {quoteData.settlementCurrency}
-                </p>
-              </div>
-            )}
-            <div className="grid md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Customer ID</label>
-                <input
-                  type="text"
-                  value={initializeForm.customerId}
-                  onChange={(e) => setInitializeForm(prev => ({ ...prev, customerId: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Reference</label>
-                <input
-                  type="text"
-                  value={initializeForm.reference}
-                  onChange={(e) => setInitializeForm(prev => ({ ...prev, reference: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Account Name</label>
-                <input
-                  type="text"
-                  value={initializeForm.beneficiary.accountName}
-                  onChange={(e) => setInitializeForm(prev => ({ 
-                    ...prev, 
-                    beneficiary: { ...prev.beneficiary, accountName: e.target.value }
-                  }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Account Number</label>
-                <input
-                  type="text"
-                  value={initializeForm.beneficiary.accountNumber}
-                  onChange={(e) => setInitializeForm(prev => ({ 
-                    ...prev, 
-                    beneficiary: { ...prev.beneficiary, accountNumber: e.target.value }
-                  }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Bank Code</label>
-                <input
-                  type="text"
-                  value={initializeForm.beneficiary.bankCode}
-                  onChange={(e) => setInitializeForm(prev => ({ 
-                    ...prev, 
-                    beneficiary: { ...prev.beneficiary, bankCode: e.target.value }
-                  }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="e.g., 044"
-                />
+          <div className="animate-fade-in">
+            <div className="border border-gray-200 rounded-lg p-8">
+              <h2 className="text-2xl font-semibold text-black mb-6">
+                Initialize Payout
+              </h2>
+
+              {quoteData && (
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 mb-8">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="font-semibold text-black mb-2">
+                        Quote Created Successfully
+                      </h3>
+                      <div className="space-y-1 text-sm">
+                        <p className="text-gray-600">
+                          <span className="font-medium text-black">
+                            Exchange Rate:
+                          </span>{" "}
+                          {quoteData.exchangeRate as string}
+                        </p>
+                        <p className="text-gray-600">
+                          <span className="font-medium text-black">
+                            Settlement Amount:
+                          </span>{" "}
+                          {quoteData.settlementAmount as string}{" "}
+                          {quoteData.settlementCurrency as string}
+                        </p>
+                      </div>
+                    </div>
+                    <svg
+                      className="w-6 h-6 text-black"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-6">
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-black mb-2">
+                      Customer ID
+                    </label>
+                    <input
+                      type="text"
+                      value={initializeForm.customerId}
+                      onChange={(e) =>
+                        setInitializeForm((prev) => ({
+                          ...prev,
+                          customerId: e.target.value,
+                        }))
+                      }
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition-all"
+                      placeholder="Enter customer ID"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-black mb-2">
+                      Reference
+                    </label>
+                    <input
+                      type="text"
+                      value={initializeForm.reference}
+                      onChange={(e) =>
+                        setInitializeForm((prev) => ({
+                          ...prev,
+                          reference: e.target.value,
+                        }))
+                      }
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition-all"
+                      placeholder="Transaction reference"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-black mb-2">
+                      Account Name
+                    </label>
+                    <input
+                      type="text"
+                      value={initializeForm.beneficiary.accountName}
+                      onChange={(e) =>
+                        setInitializeForm((prev) => ({
+                          ...prev,
+                          beneficiary: {
+                            ...prev.beneficiary,
+                            accountName: e.target.value,
+                          },
+                        }))
+                      }
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition-all"
+                      placeholder="Beneficiary name"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-black mb-2">
+                      Account Number
+                    </label>
+                    <input
+                      type="text"
+                      value={initializeForm.beneficiary.accountNumber}
+                      onChange={(e) =>
+                        setInitializeForm((prev) => ({
+                          ...prev,
+                          beneficiary: {
+                            ...prev.beneficiary,
+                            accountNumber: e.target.value,
+                          },
+                        }))
+                      }
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition-all"
+                      placeholder="Account number"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-black mb-2">
+                      Bank Code
+                    </label>
+                    <input
+                      type="text"
+                      value={initializeForm.beneficiary.bankCode}
+                      onChange={(e) =>
+                        setInitializeForm((prev) => ({
+                          ...prev,
+                          beneficiary: {
+                            ...prev.beneficiary,
+                            bankCode: e.target.value,
+                          },
+                        }))
+                      }
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition-all"
+                      placeholder="e.g., 044"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={initializePayout}
+                    disabled={isLoading}
+                    className="flex-1 bg-black text-white py-3 px-6 rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-all font-medium"
+                  >
+                    {isLoading ? "Initializing..." : "Initialize Payout"}
+                  </button>
+                  <button
+                    onClick={() => setCurrentStep("quote")}
+                    className="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-all font-medium"
+                  >
+                    Back
+                  </button>
+                </div>
               </div>
             </div>
-            <button
-              onClick={initializePayout}
-              disabled={isLoading}
-              className="bg-blue-600 text-white py-2 px-6 rounded-md hover:bg-blue-700 disabled:opacity-50"
-            >
-              {isLoading ? "Initializing..." : "Initialize Payout"}
-            </button>
           </div>
         )}
 
         {/* Finalize Step */}
         {currentStep === "finalize" && (
-          <div className="space-y-6">
-            <h2 className="text-lg font-semibold text-gray-900">Finalize Payout</h2>
-            {initializeData && (
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <h3 className="font-medium text-blue-900">Payout Initialized</h3>
-                <p className="text-blue-700 text-sm">
-                  ID: {initializeData.id} | Status: {initializeData.status}
-                </p>
-                <p className="text-blue-700 text-sm">
-                  Address: {initializeData.address}
-                </p>
+          <div className="animate-fade-in">
+            <div className="border border-gray-200 rounded-lg p-8">
+              <h2 className="text-2xl font-semibold text-black mb-6">
+                Finalize Payout
+              </h2>
+
+              {initializeData && (
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 mb-8">
+                  <div className="flex items-start justify-between mb-4">
+                    <h3 className="font-semibold text-black">
+                      Payout Initialized
+                    </h3>
+                    <svg
+                      className="w-6 h-6 text-black"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                  </div>
+                  <div className="space-y-2 text-sm">
+                    <p className="text-gray-600">
+                      <span className="font-medium text-black">ID:</span>{" "}
+                      {initializeData.id as string}
+                    </p>
+                    <p className="text-gray-600">
+                      <span className="font-medium text-black">Status:</span>{" "}
+                      {initializeData.status as string}
+                    </p>
+                    <p className="text-gray-600 break-all">
+                      <span className="font-medium text-black">Address:</span>{" "}
+                      {initializeData.address as string}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-4">
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                  <p className="text-sm text-gray-600">
+                    Review the details above and click the button below to
+                    complete the payout transaction.
+                  </p>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={finalizePayout}
+                    disabled={isLoading}
+                    className="flex-1 bg-black text-white py-3 px-6 rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-all font-medium"
+                  >
+                    {isLoading ? "Finalizing..." : "Complete Payout"}
+                  </button>
+                  <button
+                    onClick={resetFlow}
+                    className="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-all font-medium"
+                  >
+                    Start New
+                  </button>
+                </div>
               </div>
-            )}
-            <div className="flex space-x-4">
-              <button
-                onClick={finalizePayout}
-                disabled={isLoading}
-                className="bg-green-600 text-white py-2 px-6 rounded-md hover:bg-green-700 disabled:opacity-50"
-              >
-                {isLoading ? "Finalizing..." : "Complete Payout"}
-              </button>
-              <button
-                onClick={resetFlow}
-                className="bg-gray-300 text-gray-700 py-2 px-6 rounded-md hover:bg-gray-400"
-              >
-                Start New Payout
-              </button>
             </div>
           </div>
         )}
