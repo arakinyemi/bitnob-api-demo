@@ -37,15 +37,18 @@ func main() {
 	router.Use(middleware.Logger())
 	router.Use(middleware.Recovery())
 
-	
-	router.POST("/wallets/transfers", transferHandler.CreateTransfer)
 
 	// API routes
 	apiV1 := router.Group("/api")
 	{
+		// Wallet routes
+		wallets := apiV1.Group("/wallets")
+		{
+			wallets.POST("/transfers", transferHandler.CreateTransfer)
+		}
 
 		// Payout routes
-		payouts := apiV1.Group("/api/payouts")
+		payouts := apiV1.Group("/payouts")
 		{
 			payouts.POST("/quotes", payoutHandler.CreateQuote)
 			payouts.POST("/initialize", payoutHandler.InitializePayout)

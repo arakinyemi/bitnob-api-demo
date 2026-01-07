@@ -70,7 +70,7 @@ func (c *Client) makeRequest(method, endpoint string, body interface{}, response
 	req.Header.Set("X-Auth-Nonce", authHeaders.XAuthNonce)
 	req.Header.Set("X-Auth-Signature", authHeaders.XAuthSignature)
 
-	log.Printf("Auth headers - Client: %s, Timestamp: %s, Nonce: %s, Signature: %s", 
+	log.Printf("Auth headers - Client: %s, Timestamp: %s, Nonce: %s, Signature: %s",
 		authHeaders.XAuthClient, authHeaders.XAuthTimestamp, authHeaders.XAuthNonce, authHeaders.XAuthSignature)
 
 	// Make request
@@ -89,7 +89,7 @@ func (c *Client) makeRequest(method, endpoint string, body interface{}, response
 	// Check status code
 	log.Printf("Response status: %d", resp.StatusCode)
 	log.Printf("Response body: %s", string(respBody))
-	
+
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(respBody))
 	}
@@ -117,7 +117,7 @@ func (c *Client) POST(endpoint string, body interface{}, response interface{}) e
 // Transfer Methods
 func (c *Client) CreateTransfer(req interface{}) (interface{}, error) {
 	var response interface{}
-	err := c.POST("/wallets/transfers", req, &response)
+	err := c.POST("/api/wallets/transfers", req, &response)
 	return response, err
 }
 
