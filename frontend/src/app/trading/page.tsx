@@ -13,6 +13,7 @@ interface CreateOrderRequest {
 export default function TradingPage() {
   const [activeTab, setActiveTab] = useState<"trade" | "orders">("trade");
   const [isLoading, setIsLoading] = useState(false);
+  const [isCreatingOrder, setIsCreatingOrder] = useState(false);
   const [quoteResult, setQuoteResult] = useState<Record<
     string,
     unknown
@@ -25,21 +26,20 @@ export default function TradingPage() {
 
   const [orderForm, setOrderForm] = useState<CreateOrderRequest>({
     base_currency: "BTC",
-    quote_currency: "USD",
+    quote_currency: "USDT",
     side: "buy",
     quantity: "",
     price: "",
   });
 
-  const createQuoteAndOrder = async () => {
+  const createQuote = async () => {
     setIsLoading(true);
     setQuoteResult(null);
     setOrderResult(null);
 
     try {
-      // Step 1: Create Quote
       const quoteResponse = await fetch(
-        "http://localhost:8080/api/v1/trading/quotes",
+        "http://localhost:8080/api/trading/quotes",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -53,53 +53,77 @@ export default function TradingPage() {
       );
 
       const quoteData = await quoteResponse.json();
+      console.log("Quote response:", quoteData);
       setQuoteResult(quoteData);
+    } catch (error) {
+      setQuoteResult({ error: "Failed to create quote", details: error });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-      if (quoteData.success && quoteData.id) {
-        // Step 2: Create Order with quote
-        const orderResponse = await fetch(
-          "http://localhost:8080/api/v1/trading/orders",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              base_currency: orderForm.base_currency,
-              quote_currency: orderForm.quote_currency,
-              side: orderForm.side,
-              quantity: orderForm.quantity,
-              price: orderForm.price || quoteData.price,
-              quote_id: quoteData.id,
-            }),
-          },
-        );
+  const finalizeOrder = async () => {
+    console.log("Quote result for finalization:", quoteResult);
+    
+    // Handle different possible quote response structures
+    const quoteId = quoteResult?.id || quoteResult?.data?.id || quoteResult?.data?.data?.quote?.id;
+    const quotePrice = quoteResult?.price || quoteResult?.data?.price || quoteResult?.data?.data?.quote?.price;
+    
+    if (!quoteResult || !quoteId) {
+      setOrderResult({ error: "No quote available to finalize", debug: { quoteResult } });
+      return;
+    }
 
-        const orderData = await orderResponse.json();
-        setOrderResult(orderData);
+    setIsCreatingOrder(true);
+    setOrderResult(null);
 
-        if (orderData.success) {
-          // Refresh orders list
-          fetchOrders();
-          // Reset form
-          setOrderForm({
-            base_currency: "BTC",
-            quote_currency: "USD",
-            side: "buy",
-            quantity: "",
-            price: "",
-          });
-        }
+    try {
+      const orderResponse = await fetch(
+        "http://localhost:8080/api/trading/orders",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            base_currency: orderForm.base_currency,
+            quote_currency: orderForm.quote_currency,
+            side: orderForm.side,
+            quantity: orderForm.quantity,
+            price: orderForm.price || quotePrice,
+            quote_id: quoteId,
+            metadata: {
+              reference: `user-order-${Date.now()}`,
+            },
+          }),
+        },
+      );
+
+      const orderData = await orderResponse.json();
+      setOrderResult(orderData);
+
+      if (orderData.success) {
+        // Refresh orders list
+        fetchOrders();
+        // Reset form and quote
+        setOrderForm({
+          base_currency: "BTC",
+          quote_currency: "USDT",
+          side: "buy",
+          quantity: "",
+          price: "",
+        });
+        setQuoteResult(null);
       }
     } catch (error) {
       setOrderResult({ error: "Failed to create order", details: error });
     } finally {
-      setIsLoading(false);
+      setIsCreatingOrder(false);
     }
   };
 
   const fetchOrders = async () => {
     try {
       const response = await fetch(
-        "http://localhost:8080/api/v1/trading/orders",
+        "http://localhost:8080/api/trading/orders",
       );
       const data = await response.json();
       setOrders(Array.isArray(data) ? data : []);
@@ -188,7 +212,6 @@ export default function TradingPage() {
                         >
                           <option value="BTC">Bitcoin (BTC)</option>
                           <option value="USDT">Tether (USDT)</option>
-                          <option value="USDC">USD Coin (USDC)</option>
                         </select>
                       </div>
 
@@ -206,9 +229,8 @@ export default function TradingPage() {
                           onChange={handleInputChange}
                           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition-all appearance-none bg-white"
                         >
-                          <option value="USD">US Dollar (USD)</option>
-                          <option value="EUR">Euro (EUR)</option>
-                          <option value="NGN">Nigerian Naira (NGN)</option>
+                          <option value="USDT">Tether (USDT)</option>
+                          <option value="BTC">Bitcoin (BTC)</option>
                         </select>
                       </div>
                     </div>
@@ -300,14 +322,35 @@ export default function TradingPage() {
                       </p>
                     </div>
 
-                    {/* Submit Button */}
-                    <button
-                      onClick={createQuoteAndOrder}
-                      disabled={isLoading || !orderForm.quantity}
-                      className="w-full bg-black text-white py-3 px-6 rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium"
-                    >
-                      {isLoading ? "Processing Order..." : "Place Order"}
-                    </button>
+                    {/* Submit Buttons */}
+                    {!quoteResult ? (
+                      <button
+                        onClick={createQuote}
+                        disabled={isLoading || !orderForm.quantity}
+                        className="w-full bg-black text-white py-3 px-6 rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium"
+                      >
+                        {isLoading ? "Creating Quote..." : "Get Quote"}
+                      </button>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-4">
+                        <button
+                          onClick={() => {
+                            setQuoteResult(null);
+                            setOrderResult(null);
+                          }}
+                          className="py-3 px-6 border border-gray-300 rounded-lg hover:bg-gray-50 transition-all font-medium"
+                        >
+                          New Quote
+                        </button>
+                        <button
+                          onClick={finalizeOrder}
+                          disabled={isCreatingOrder}
+                          className="bg-black text-white py-3 px-6 rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium"
+                        >
+                          {isCreatingOrder ? "Finalizing..." : "Finalize Order"}
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   {/* Quote Result */}
@@ -317,9 +360,9 @@ export default function TradingPage() {
                         <h3 className="text-sm font-semibold text-black uppercase tracking-wide">
                           Quote Details
                         </h3>
-                        {(quoteResult.success as boolean) && (
+                        {((quoteResult.success as boolean) || (quoteResult.data?.success && !quoteResult.error)) && (
                           <svg
-                            className="w-5 h-5 text-black"
+                            className="w-5 h-5 text-green-600"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -334,25 +377,60 @@ export default function TradingPage() {
                         )}
                       </div>
                       <div className="bg-gray-50 rounded-lg p-4">
-                        <div className="grid grid-cols-2 gap-4 text-sm">
-                          {(quoteResult.price as string) && (
-                            <div>
-                              <div className="text-gray-500 mb-1">Price</div>
-                              <div className="text-black font-medium">
-                                {quoteResult.price as string}
+                        {quoteResult.error ? (
+                          <div className="text-red-600 text-sm">
+                            Error: {String(quoteResult.error)}
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                            {((quoteResult.price as string) || (quoteResult.data?.price as string) || (quoteResult.data?.data?.quote?.price as string)) && (
+                              <div>
+                                <div className="text-gray-500 mb-1">Price</div>
+                                <div className="text-black font-medium">
+                                  {((quoteResult.price as string) || (quoteResult.data?.price as string) || (quoteResult.data?.data?.quote?.price as string))} {orderForm.quote_currency}
+                                </div>
                               </div>
-                            </div>
-                          )}
-                          {(quoteResult.id as string) && (
-                            <div>
-                              <div className="text-gray-500 mb-1">Quote ID</div>
-                              <div className="text-black font-mono text-xs">
-                                {(quoteResult.id as string).substring(0, 12)}...
+                            )}
+                            {((quoteResult.quantity as string) || (quoteResult.data?.quantity as string) || (quoteResult.data?.data?.quote?.quantity as string)) && (
+                              <div>
+                                <div className="text-gray-500 mb-1">Quantity</div>
+                                <div className="text-black font-medium">
+                                  {((quoteResult.quantity as string) || (quoteResult.data?.quantity as string) || (quoteResult.data?.data?.quote?.quantity as string))} {orderForm.base_currency}
+                                </div>
                               </div>
-                            </div>
-                          )}
-                        </div>
+                            )}
+                            {((quoteResult.side as string) || (quoteResult.data?.side as string) || (quoteResult.data?.data?.quote?.side as string)) && (
+                              <div>
+                                <div className="text-gray-500 mb-1">Side</div>
+                                <div className="text-black font-medium capitalize">
+                                  {(((quoteResult.side as string) || (quoteResult.data?.side as string) || (quoteResult.data?.data?.quote?.side as string))?.toLowerCase() || "")}
+                                </div>
+                              </div>
+                            )}
+                            {((quoteResult.expires_at as string) || (quoteResult.data?.expires_at as string) || (quoteResult.data?.data?.quote?.expires_at as string)) && (
+                              <div>
+                                <div className="text-gray-500 mb-1">Expires At</div>
+                                <div className="text-black font-medium text-xs">
+                                  {new Date(((quoteResult.expires_at as string) || (quoteResult.data?.expires_at as string) || (quoteResult.data?.data?.quote?.expires_at as string))).toLocaleString()}
+                                </div>
+                              </div>
+                            )}
+                            {((quoteResult.id as string) || (quoteResult.data?.id as string) || (quoteResult.data?.data?.quote?.id as string)) && (
+                              <div className="md:col-span-2">
+                                <div className="text-gray-500 mb-1">Quote ID</div>
+                                <div className="text-black font-mono text-xs bg-white p-2 rounded border">
+                                  {((quoteResult.id as string) || (quoteResult.data?.id as string) || (quoteResult.data?.data?.quote?.id as string))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
+                      {((quoteResult.success as boolean) || (quoteResult.data?.success && !quoteResult.error)) && (
+                        <div className="mt-3 text-xs text-gray-500 text-center">
+                          Review the quote details above and click "Finalize Order" to proceed with the trade
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -409,7 +487,7 @@ export default function TradingPage() {
                     <div>
                       <div className="text-gray-500 mb-1">Available Pairs</div>
                       <div className="text-black">
-                        BTC/USD, USDT/USD, USDC/EUR
+                        BTC/USDT, USDT/BTC
                       </div>
                     </div>
                     <div>

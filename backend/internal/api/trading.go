@@ -39,10 +39,8 @@ func (h *TradingHandler) CreateQuote(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    response,
-	})
+	// Return quote details at the top level for frontend compatibility
+	c.JSON(http.StatusOK, response)
 }
 
 func (h *TradingHandler) CreateOrder(c *gin.Context) {
@@ -67,10 +65,8 @@ func (h *TradingHandler) CreateOrder(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    response,
-	})
+	// Return order details at the top level for frontend compatibility  
+	c.JSON(http.StatusOK, response)
 }
 
 func (h *TradingHandler) GetOrders(c *gin.Context) {
@@ -84,10 +80,7 @@ func (h *TradingHandler) GetOrders(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    response,
-	})
+	c.JSON(http.StatusOK, response)
 }
 
 func (h *TradingHandler) GetOrderByID(c *gin.Context) {
@@ -103,8 +96,5 @@ func (h *TradingHandler) GetOrderByID(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    response,
-	})
+	c.JSON(http.StatusOK, response)
 }

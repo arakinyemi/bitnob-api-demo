@@ -30,18 +30,44 @@ export default function TransfersPage() {
     setResult(null);
 
     try {
-      const response = await fetch("http://localhost:8080/api/v1/transfers", {
+      console.log("Making request to backend...", formData);
+      
+      // Ensure reference is not empty
+      const requestData = {
+        ...formData,
+        reference: formData.reference || `transfer_${Date.now()}`
+      };
+      
+      const response = await fetch("http://localhost:8080/api/wallets/transfers", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(requestData),
       });
 
+      console.log("Response status:", response.status);
+      console.log("Response headers:", response.headers);
+
       const data = await response.json();
+      console.log("Response data:", data);
+      
+      // Always show the response, whether it's success or error
       setResult(data);
     } catch (error) {
-      setResult({ error: "Failed to create transfer", details: error });
+      console.error("Request error:", error);
+      setResult({ 
+        error: "Request failed", 
+        details: {
+          message: error instanceof Error ? error.message : String(error),
+          status: "Network or parsing error",
+          url: "http://localhost:8080/api/wallets/transfers",
+          formData: {
+            ...formData,
+            reference: formData.reference || `transfer_${Date.now()}`
+          }
+        }
+      });
     } finally {
       setIsLoading(false);
     }
@@ -139,7 +165,7 @@ export default function TransfersPage() {
                     value={formData.amount}
                     onChange={handleInputChange}
                     required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all bg-white text-black"
                     placeholder="0.001"
                   />
                 </div>
@@ -157,7 +183,7 @@ export default function TransfersPage() {
                     value={formData.currency}
                     onChange={handleInputChange}
                     required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all appearance-none bg-white"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all appearance-none bg-white text-black"
                   >
                     <option value="BTC">Bitcoin (BTC)</option>
                     <option value="USDT">Tether (USDT)</option>
@@ -180,7 +206,7 @@ export default function TransfersPage() {
                   value={formData.chain}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all appearance-none bg-white"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all appearance-none bg-white text-black"
                 >
                   {getAvailableChains().map((chain) => (
                     <option key={chain.value} value={chain.value}>
@@ -207,7 +233,7 @@ export default function TransfersPage() {
                   name="reference"
                   value={formData.reference}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all bg-white text-black"
                   placeholder="Internal reference"
                 />
               </div>
@@ -229,7 +255,7 @@ export default function TransfersPage() {
                   value={formData.description}
                   onChange={handleInputChange}
                   rows={3}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all resize-none"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all resize-none bg-white text-black"
                   placeholder="Add notes about this transfer"
                 />
               </div>
@@ -308,7 +334,7 @@ export default function TransfersPage() {
                 </svg>
               </button>
             </div>
-            <pre className="text-sm text-gray-600 overflow-auto bg-gray-50 p-4 rounded-lg font-mono">
+            <pre className="text-sm text-gray-600 overflow-auto bg-gray-50 p-4 rounded-lg font-mono whitespace-pre-wrap break-words">
               {JSON.stringify(result, null, 2)}
             </pre>
           </div>

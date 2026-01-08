@@ -8,7 +8,6 @@ interface PayoutQuoteRequest {
   toCurrency: string;
   chain?: string;
   amount?: number;
-  settlementAmount?: number;
 }
 
 interface InitializePayoutRequest {
@@ -38,12 +37,13 @@ export default function PayoutsPage() {
     unknown
   > | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const [quoteForm, setQuoteForm] = useState<PayoutQuoteRequest>({
-    source: "balance",
-    fromAsset: "BTC",
-    toCurrency: "NGN",
-    chain: "bitcoin",
+    source: "onchain",
+    fromAsset: "usdt",
+    toCurrency: "ngn", 
+    chain: "trc20",
     amount: 0,
   });
 
@@ -64,21 +64,30 @@ export default function PayoutsPage() {
   );
 
   const getAvailableChains = () => {
-    if (quoteForm.fromAsset === "BTC") {
+    if (quoteForm.fromAsset === "btc") {
       return [{ value: "bitcoin", label: "Bitcoin" }];
-    } else {
+    } else if (quoteForm.fromAsset === "usdt") {
+      return [
+        { value: "trc20", label: "Tron (TRC20)" },
+        { value: "polygon", label: "Polygon" },
+        { value: "bsc", label: "Binance Smart Chain" },
+      ];
+    } else if (quoteForm.fromAsset === "usdc") {
       return [
         { value: "polygon", label: "Polygon" },
         { value: "bsc", label: "Binance Smart Chain" },
       ];
+    } else {
+      return [{ value: "trc20", label: "Tron (TRC20)" }];
     }
   };
 
   const createQuote = async () => {
     setIsLoading(true);
+    setError(null);
     try {
       const response = await fetch(
-        "http://localhost:8080/api/v1/payouts/quotes",
+        "http://localhost:8080/api/payouts/quotes",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -86,14 +95,22 @@ export default function PayoutsPage() {
         },
       );
       const data = await response.json();
+      
+      if (!response.ok) {
+        setError(`Failed to create quote: ${data.error || data.details || 'Unknown error'}`);
+        setQuoteData(data);
+        return;
+      }
+      
       setQuoteData(data);
       setInitializeForm((prev) => ({
         ...prev,
-        quoteId: data.id || data.quoteId,
+        quoteId: data.data?.id || data.id || data.quoteId,
       }));
       setCurrentStep("initialize");
     } catch (error) {
       console.error("Quote creation failed:", error);
+      setError(`Request failed: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setIsLoading(false);
     }
@@ -101,20 +118,35 @@ export default function PayoutsPage() {
 
   const initializePayout = async () => {
     setIsLoading(true);
+    setError(null);
     try {
+      // Ensure reference is not empty
+      const requestData = {
+        ...initializeForm,
+        reference: initializeForm.reference || `payout_${Date.now()}`
+      };
+
       const response = await fetch(
-        "http://localhost:8080/api/v1/payouts/initialize",
+        "http://localhost:8080/api/payouts/initialize",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(initializeForm),
+          body: JSON.stringify(requestData),
         },
       );
       const data = await response.json();
+      
+      if (!response.ok) {
+        setError(`Failed to initialize payout: ${data.error || data.details || 'Unknown error'}`);
+        setInitializeData(data);
+        return;
+      }
+      
       setInitializeData(data);
       setCurrentStep("finalize");
     } catch (error) {
       console.error("Payout initialization failed:", error);
+      setError(`Request failed: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setIsLoading(false);
     }
@@ -122,9 +154,10 @@ export default function PayoutsPage() {
 
   const finalizePayout = async () => {
     setIsLoading(true);
+    setError(null);
     try {
       const response = await fetch(
-        "http://localhost:8080/api/v1/payouts/finalize",
+        "http://localhost:8080/api/payouts/finalize",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -132,10 +165,17 @@ export default function PayoutsPage() {
         },
       );
       const data = await response.json();
+      
+      if (!response.ok) {
+        setError(`Failed to finalize payout: ${data.error || data.details || 'Unknown error'}`);
+        return;
+      }
+      
       alert("Payout completed successfully!");
       console.log("Finalization result:", data);
     } catch (error) {
       console.error("Payout finalization failed:", error);
+      setError(`Request failed: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setIsLoading(false);
     }
@@ -145,6 +185,7 @@ export default function PayoutsPage() {
     setCurrentStep("quote");
     setQuoteData(null);
     setInitializeData(null);
+    setError(null);
   };
 
   const steps = [
@@ -205,6 +246,47 @@ export default function PayoutsPage() {
           </div>
         </div>
 
+        {/* Error Display */}
+        {error && (
+          <div className="mb-8 border border-red-200 bg-red-50 rounded-lg p-6">
+            <div className="flex items-start">
+              <svg
+                className="w-5 h-5 text-red-500 mt-0.5 mr-3 flex-shrink-0"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <div className="flex-1">
+                <h3 className="text-sm font-medium text-red-800 mb-1">Error</h3>
+                <p className="text-sm text-red-700">{error}</p>
+                <button
+                  onClick={() => setError(null)}
+                  className="mt-2 text-sm text-red-600 hover:text-red-500 underline"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Response Data Display */}
+        {quoteData && error && (
+          <div className="mb-8 border border-gray-200 rounded-lg p-6">
+            <h3 className="text-lg font-semibold text-black mb-4">API Response</h3>
+            <pre className="text-sm text-gray-600 overflow-auto bg-gray-50 p-4 rounded-lg font-mono whitespace-pre-wrap break-words">
+              {JSON.stringify(quoteData, null, 2)}
+            </pre>
+          </div>
+        )}
+
         {/* Quote Step */}
         {currentStep === "quote" && (
           <div className="animate-fade-in">
@@ -226,18 +308,19 @@ export default function PayoutsPage() {
                       onChange={(e) => {
                         const newFromAsset = e.target.value;
                         const defaultChain =
-                          newFromAsset === "BTC" ? "bitcoin" : "polygon";
+                          newFromAsset === "btc" ? "bitcoin" : 
+                          newFromAsset === "usdt" ? "trc20" : "polygon";
                         setQuoteForm((prev) => ({
                           ...prev,
                           fromAsset: newFromAsset,
                           chain: defaultChain,
                         }));
                       }}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition-all appearance-none bg-white"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition-all appearance-none bg-white text-black"
                     >
-                      <option value="BTC">Bitcoin (BTC)</option>
-                      <option value="USDT">Tether (USDT)</option>
-                      <option value="USDC">USD Coin (USDC)</option>
+                      <option value="btc">Bitcoin (BTC)</option>
+                      <option value="usdt">Tether (USDT)</option>
+                      <option value="usdc">USD Coin (USDC)</option>
                     </select>
                   </div>
 
@@ -246,14 +329,14 @@ export default function PayoutsPage() {
                       Blockchain Network
                     </label>
                     <select
-                      value={quoteForm.chain || "bitcoin"}
+                      value={quoteForm.chain || "trc20"}
                       onChange={(e) =>
                         setQuoteForm((prev) => ({
                           ...prev,
                           chain: e.target.value,
                         }))
                       }
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition-all appearance-none bg-white"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition-all appearance-none bg-white text-black"
                     >
                       {getAvailableChains().map((chain) => (
                         <option key={chain.value} value={chain.value}>
@@ -275,12 +358,12 @@ export default function PayoutsPage() {
                           toCurrency: e.target.value,
                         }))
                       }
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition-all appearance-none bg-white"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition-all appearance-none bg-white text-black"
                     >
-                      <option value="NGN">Nigerian Naira (NGN)</option>
-                      <option value="GHS">Ghanaian Cedi (GHS)</option>
-                      <option value="KES">Kenyan Shilling (KES)</option>
-                      <option value="USD">US Dollar (USD)</option>
+                      <option value="ngn">Nigerian Naira (NGN)</option>
+                      <option value="ghs">Ghanaian Cedi (GHS)</option>
+                      <option value="kes">Kenyan Shilling (KES)</option>
+                      <option value="usd">US Dollar (USD)</option>
                     </select>
                   </div>
 
@@ -297,7 +380,7 @@ export default function PayoutsPage() {
                           amount: parseFloat(e.target.value),
                         }))
                       }
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition-all"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition-all bg-white text-black"
                       placeholder="0.001"
                       step="0.000001"
                     />
@@ -379,7 +462,7 @@ export default function PayoutsPage() {
                           customerId: e.target.value,
                         }))
                       }
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition-all"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition-all bg-white text-black"
                       placeholder="Enter customer ID"
                     />
                   </div>
@@ -397,7 +480,7 @@ export default function PayoutsPage() {
                           reference: e.target.value,
                         }))
                       }
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition-all"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition-all bg-white text-black"
                       placeholder="Transaction reference"
                     />
                   </div>
@@ -418,7 +501,7 @@ export default function PayoutsPage() {
                           },
                         }))
                       }
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition-all"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition-all bg-white text-black"
                       placeholder="Beneficiary name"
                     />
                   </div>
@@ -439,7 +522,7 @@ export default function PayoutsPage() {
                           },
                         }))
                       }
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition-all"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition-all bg-white text-black"
                       placeholder="Account number"
                     />
                   </div>
@@ -460,7 +543,7 @@ export default function PayoutsPage() {
                           },
                         }))
                       }
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition-all"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition-all bg-white text-black"
                       placeholder="e.g., 044"
                     />
                   </div>
